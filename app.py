@@ -8,9 +8,35 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 from flask_cors import CORS
 from pydub import AudioSegment
 import tempfile
+import time as _t7_time
 
 app = Flask(__name__)
 CORS(app)
+
+# T7E3: version and build info for the automated deployment
+APP_VERSION = "2.0"
+DEPLOY_METHOD = "GitHub Actions + AWS SSM"
+GIT_SHA = os.environ.get("GIT_SHA", "unknown")
+BUILD_RUN = os.environ.get("BUILD_RUN", "manual")
+BUILD_TIME = os.environ.get("BUILD_TIME", "unknown")
+STARTED_AT = _t7_time.strftime("%Y-%m-%d %H:%M:%S UTC", _t7_time.gmtime())
+
+
+@app.context_processor
+def t7_deploy_info():
+    # These names can be used in every template, for example {{ app_version }}
+    return {
+        "app_version": APP_VERSION,
+        "deploy_method": DEPLOY_METHOD,
+        "git_sha": GIT_SHA[:7],
+        "build_run": BUILD_RUN,
+        "build_time": BUILD_TIME,
+        "started_at": STARTED_AT,
+    }
+
+
+
+
 
 # Global variables for playlist management
 current_directory = None
@@ -569,6 +595,20 @@ def auto_load_data():
         except Exception as e:
             app.logger.error(f"Failed to auto-load CSV: {e}")
 
+
+@app.route("/health")
+def t7_health():
+    return jsonify(
+        status="healthy",
+        version=APP_VERSION,
+        deployment_method="automated",
+        deployed_via=DEPLOY_METHOD,
+        git_sha=GIT_SHA,
+        build_run=BUILD_RUN,
+        build_time=BUILD_TIME,
+        started_at=STARTED_AT,
+        timestamp=_t7_time.strftime("%Y-%m-%dT%H:%M:%SZ", _t7_time.gmtime()),
+    )
 
 if __name__ == '__main__':
     # Auto-load CSV and audio files on startup
